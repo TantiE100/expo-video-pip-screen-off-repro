@@ -1,0 +1,48 @@
+diff --git a/node_modules/expo-video/android/src/main/java/expo/modules/video/managers/PictureInPictureManager.kt b/node_modules/expo-video/android/src/main/java/expo/modules/video/managers/PictureInPictureManager.kt
+index 8b8eba9..71e95e3 100644
+--- a/node_modules/expo-video/android/src/main/java/expo/modules/video/managers/PictureInPictureManager.kt
++++ b/node_modules/expo-video/android/src/main/java/expo/modules/video/managers/PictureInPictureManager.kt
+@@ -118,6 +118,16 @@ class PictureInPictureManager(appContext: AppContext) : PictureInPictureFragment
+     return old.rectHint != new.rectHint || old.aspectRatio != new.aspectRatio
+   }
+ 
++  override fun onStoppedOutsidePictureInPicture() {
++    appContext.get()?.mainQueue?.launch {
++      strongVideoViews.forEach {
++        if (it.videoPlayer?.staysActiveInBackground != true) {
++          it.videoPlayer?.player?.pause()
++        }
++      }
++    }
++  }
++
+   override fun onPictureInPictureStart() {
+     maybeWarnAboutAutoEnterViews()
+ 
+diff --git a/node_modules/expo-video/android/src/main/java/expo/modules/video/utils/PictureInPictureHelperFragment.kt b/node_modules/expo-video/android/src/main/java/expo/modules/video/utils/PictureInPictureHelperFragment.kt
+index 130f3be..707d5ea 100644
+--- a/node_modules/expo-video/android/src/main/java/expo/modules/video/utils/PictureInPictureHelperFragment.kt
++++ b/node_modules/expo-video/android/src/main/java/expo/modules/video/utils/PictureInPictureHelperFragment.kt
+@@ -8,6 +8,7 @@ import java.util.UUID
+ interface PictureInPictureFragmentListener {
+   fun onPictureInPictureStart()
+   fun onPictureInPictureStop()
++  fun onStoppedOutsidePictureInPicture() {}
+ }
+ 
+ // Keep this fragment restorable after Android process death.
+@@ -37,6 +38,14 @@ class PictureInPictureHelperFragment() : Fragment() {
+     listener = null
+   }
+ 
++  // Screen off or a full switch to another app stops the activity without PiP: the PiP candidate must not keep playing.
++  override fun onStop() {
++    super.onStop()
++    if (activity?.isInPictureInPictureMode != true) {
++      listener?.get()?.onStoppedOutsidePictureInPicture()
++    }
++  }
++
+   override fun onPictureInPictureModeChanged(isInPictureInPictureMode: Boolean) {
+     super.onPictureInPictureModeChanged(isInPictureInPictureMode)
+ 
